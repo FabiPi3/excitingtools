@@ -1,70 +1,40 @@
-"""Generate an exciting XML input tree.
-"""
-from typing import Optional
-from collections import OrderedDict
-from xml.etree import ElementTree
+"""Input xml class."""
 
+from pathlib import Path
+from typing import Union
+
+from excitingtools.input.base_class import ExcitingXMLInput
+from excitingtools.input.input_classes import ExcitingGroundStateInput, ExcitingTitleInput
 from excitingtools.input.structure import ExcitingStructure
-from excitingtools.input.ground_state import ExcitingGroundStateInput
-from excitingtools.input.xs import ExcitingXSInput
-from excitingtools.input.xml_utils import xml_tree_to_pretty_str, prettify_tag_attributes
+from excitingtools.input.xml_utils import prettify_tag_attributes, xml_tree_to_pretty_str
 
 
-def initialise_input_xml(title: str) -> ElementTree.Element:
-    """Initialise input.xml element tree for exciting.
-
-    Information on the schema reference ignored, but could be reintroduced for validation purposes.
-    root.set(
-       '{http://www.w3.org/2001/XMLSchema-instance}noNamespaceSchemaLocation',
-       'http://xml.exciting-code.org/excitinginput.xsd')
-
-    :param str title: Title for calculation.
-    :return ElementTree.Elementroot: Element tree root.
+class ExcitingInputXML(ExcitingXMLInput):
     """
-    root = ElementTree.Element('input')
-    ElementTree.SubElement(root, 'title').text = title
-    return root
-
-
-def exciting_input_xml(structure: ExcitingStructure,
-                       groundstate: ExcitingGroundStateInput,
-                       title: Optional[str] = '',
-                       xs: Optional[ExcitingXSInput] = None) -> ElementTree.Element:
-    """Compose XML ElementTrees from exciting input classes to create an input XML tree.
-
-    Expected usage: input_xml = exciting_input_xml(structure, groundstate, title=title)
-
-    :param ExcitingStructure structure: Structure containing lattice vectors and atomic positions.
-    :param groundstate: exciting ground state input object.
-    :param Optional[str] title: Optional title for input file.
-    :param xs: exciting xs input object.
-    :return ElementTree.Element root: Input XML tree, with sub-elements inserted.
+    Container for a complete input xml file.
     """
-    root = initialise_input_xml(title)
 
-    structure_tree = structure.to_xml()
-    root.append(structure_tree)
+    name = "input"
+    _default_filename = "input.xml"
+    structure: ExcitingStructure
+    groundstate: ExcitingGroundStateInput
+    title: ExcitingTitleInput
 
-    exciting_elements = OrderedDict([('groundstate', groundstate), ('xs', xs)])
+    def set_title(self, title: str):
+        """Set a new title."""
+        self.__dict__["title"].title = title
 
-    for element in exciting_elements.values():
-        if element is not None:
-            root.append(element.to_xml())
+    def to_xml_str(self) -> str:
+        """Compose XML ElementTrees from exciting input classes to create an input xml string.
 
-    return root
+        :return: Input XML tree as a string, with pretty formatting.
+        """
+        return prettify_tag_attributes(xml_tree_to_pretty_str(self.to_xml()))
 
+    def write(self, filename: Union[str, Path] = _default_filename):
+        """Writes the xml string to file.
 
-def exciting_input_xml_str(structure: ExcitingStructure,
-                           groundstate: ExcitingGroundStateInput,
-                           **kwargs) -> str:
-    """Compose XML ElementTrees from exciting input classes to create an input xml string.
-
-    :param ExcitingStructure structure: Structure containing lattice vectors and atomic positions.
-    :param groundstate: exciting ground state input object.
-    :return input_xml_str: Input XML tree as a string, with pretty formatting.
-    """
-    xml_tree = exciting_input_xml(structure, groundstate, **kwargs)
-    tags_to_prettify = ["\t<structure", "\t\t<crystal", "\t\t<species", "\t\t\t<atom", "\t<groundstate", "\t<xs",
-                        "\t\t<screening", "\t\t<BSE", "\t\t<energywindow"]
-    input_xml_str = prettify_tag_attributes(xml_tree_to_pretty_str(xml_tree), tags_to_prettify)
-    return input_xml_str
+        :param filename: name of the file.
+        """
+        with open(filename, "w") as fid:
+            fid.write(self.to_xml_str())
